@@ -203,29 +203,26 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
   .kpi-strip { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
   // ── FIREBASE CONFIG — replace with your own from Firebase Console ──
   const firebaseConfig = {
-  apiKey: "AIzaSyDPJukKsfp8Dd1vlfve5OmhoepHYdOqBsI",
-  authDomain: "pokerookie-tcg.firebaseapp.com",
-  databaseURL: "https://pokerookie-tcg-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "pokerookie-tcg",
-  storageBucket: "pokerookie-tcg.firebasestorage.app",
-  messagingSenderId: "595171331918",
-  appId: "1:595171331918:web:15b934841b0afc09c0181f",
-  measurementId: "G-4PVMZK3QQ5"
+    apiKey: "AIzaSyDPJukKsfp8Dd1vlfve5OmhoepHYdOqBsI",
+    authDomain: "pokerookie-tcg.firebaseapp.com",
+    databaseURL: "https://pokerookie-tcg-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "pokerookie-tcg",
+    storageBucket: "pokerookie-tcg.firebasestorage.app",
+    messagingSenderId: "595171331918",
+    appId: "1:595171331918:web:15b934841b0afc09c0181f"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  const dbRef = ref(db, 'ptcg');
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const dbRef = db.ref('ptcg');
 
-  // Expose to global scope for legacy script
-  window._fbSet = (data) => set(dbRef, data);
-  window._fbListen = (cb) => onValue(dbRef, snap => cb(snap.val()));
+  window._fbSet = (data) => dbRef.set(data);
+  window._fbListen = (cb) => dbRef.on('value', snap => cb(snap.val()));
   window._fbReady = true;
 </script>
 </head>
