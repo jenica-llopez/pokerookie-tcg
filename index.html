@@ -245,6 +245,9 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
     <button class="nav-item" onclick="showPage('estimator')" id="nav-estimator">
       <span class="nav-icon">⬡</span> Shipping Calc
     </button>
+    <button class="nav-item" onclick="showPage('shipments')" id="nav-shipments">
+      <span class="nav-icon">◈</span> Shipments
+    </button>
     <button class="nav-item" onclick="showPage('rates')" id="nav-rates">
       <span class="nav-icon">◎</span> Shipping Rates
     </button>
@@ -256,7 +259,7 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
     <div class="rate-widget">
       <div class="rate-label">AUD → PHP RATE</div>
       <div class="rate-row">
-        <input type="number" id="fx-rate" value="35" step="0.5" min="1" oninput="saveState(); renderInventory()">
+        <input type="number" id="fx-rate" value="40" step="0.5" min="1" oninput="saveState(); renderInventory()">
         <span>PHP/AUD</span>
       </div>
     </div>
@@ -405,6 +408,35 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
     </div>
   </div>
 
+  <!-- ── SHIPMENTS PAGE ── -->
+  <div id="page-shipments" style="display:none">
+    <div class="page-header" style="margin-bottom:20px">
+      <div>
+        <div class="page-title">SHIPMENTS</div>
+        <div class="page-sub">Create shipment batches — assign items to them from the inventory</div>
+      </div>
+      <button class="btn btn-yellow" onclick="openShipmentModal()">+ New Shipment</button>
+    </div>
+    <div class="page-content" style="padding-top:0">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>NAME</th><th>TYPE</th><th>STATUS</th>
+              <th>PICKUP DATE</th><th>ETA TO CEBU</th><th>ITEMS</th>
+              <th>TOTAL SHIP COST (AUD)</th><th>NOTES</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="shipments-tbody"></tbody>
+        </table>
+        <div class="empty" id="shipments-empty" style="display:none">
+          <div class="empty-icon">◈</div>
+          <div class="empty-text">No shipments yet. Create one to start assigning items.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── RATES PAGE ── -->
   <div id="page-rates" style="display:none">
     <div class="page-header" style="margin-bottom:20px">
@@ -444,6 +476,42 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
 </main>
 </div>
 
+<!-- ── SHIPMENT MODAL ── -->
+<div class="modal-overlay" id="shipment-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="shipment-modal-h2">NEW SHIPMENT</h2>
+      <button class="modal-close" onclick="closeShipmentModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="fg"><label>SHIPMENT NAME</label><input id="sm-name" type="text" placeholder="e.g. Air Cargo 1"></div>
+        <div class="fg"><label>TYPE</label>
+          <select id="sm-type">
+            <option value="air">Air Cargo</option>
+            <option value="sea">Sea Cargo</option>
+          </select>
+        </div>
+        <div class="fg"><label>STATUS</label>
+          <select id="sm-status">
+            <option value="preparing">Preparing</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+          </select>
+        </div>
+        <div class="fg"><label>PICKUP DATE (AU)</label><input id="sm-pickup" type="date"></div>
+        <div class="fg"><label>ETA TO CEBU</label><input id="sm-eta" type="date"></div>
+        <div class="fg"><label>TOTAL SHIPPING COST (AUD)</label><input id="sm-cost" type="number" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="fg full"><label>NOTES</label><textarea id="sm-notes" placeholder="Carrier, tracking number, contact, etc..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeShipmentModal()">Cancel</button>
+      <button class="btn btn-yellow" onclick="saveShipment()">Save Shipment</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── ITEM MODAL ── -->
 <div class="modal-overlay" id="item-modal">
   <div class="modal">
@@ -464,7 +532,7 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
         <div class="form-grid">
           <div class="fg full"><label>ITEM NAME *</label><input id="f-name" type="text" placeholder="e.g. Prismatic Evolutions ETB"></div>
           <div class="fg"><label>TYPE</label>
-            <select id="f-type">
+            <select id="f-item-type">
               <option>Single Card</option><option>Single Pack</option><option>Booster Bundle</option>
               <option>Booster Box</option><option>ETB</option><option>Promo Box</option><option>Other</option>
             </select>
@@ -483,38 +551,18 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
 
       <!-- Tab 2: Shipping -->
       <div class="tab-panel" id="panel-shipping">
-        <div class="manual-toggle" style="margin-bottom:14px">
-          <input type="checkbox" id="ship-manual" onchange="toggleShipManual()">
-          <label for="ship-manual">Add AU→Cebu shipping cost manually</label>
+        <div class="fg" style="margin-bottom:16px">
+          <label>ASSIGN TO SHIPMENT</label>
+          <select id="f-shipment-id">
+            <option value="">— Not assigned yet —</option>
+          </select>
         </div>
-        <div id="ship-manual-input" style="display:none;margin-bottom:14px">
-          <div class="fg"><label>SHIPPING COST (AUD) — MANUAL</label><input id="f-ship-manual" type="number" min="0" step="0.01" placeholder="0.00" oninput="previewShipCost()"></div>
+        <div class="fg" style="margin-bottom:16px">
+          <label>AU→CEBU SHIPPING COST FOR THIS ITEM (AUD)</label>
+          <input id="f-ship-cost" type="number" min="0" step="0.01" placeholder="0.00 — enter 0 if not yet shipped">
         </div>
-        <div id="ship-calc-section">
-          <div class="fg" style="margin-bottom:12px"><label>CARGO TYPE</label>
-            <select id="f-ship-mode" onchange="previewShipCost()">
-              <option value="air">Air Cargo</option>
-              <option value="sea">Sea Cargo</option>
-            </select>
-          </div>
-          <div class="fg" style="margin-bottom:10px"><label>DIMENSIONS UNIT</label>
-            <div class="unit-toggle">
-              <button class="unit-btn active" id="f-unit-cm" onclick="setModalUnit('cm')">cm / kg</button>
-              <button class="unit-btn" id="f-unit-in" onclick="setModalUnit('in')">in / lbs</button>
-            </div>
-          </div>
-          <div class="dim-row" style="margin-bottom:12px">
-            <div class="fg"><label id="fl-l">L (cm)</label><input id="f-dim-l" type="number" min="0" step="0.1" value="" placeholder="0" oninput="previewShipCost()"></div>
-            <div class="fg"><label id="fl-w">W (cm)</label><input id="f-dim-w" type="number" min="0" step="0.1" value="" placeholder="0" oninput="previewShipCost()"></div>
-            <div class="fg"><label id="fl-h">H (cm)</label><input id="f-dim-h" type="number" min="0" step="0.1" value="" placeholder="0" oninput="previewShipCost()"></div>
-            <div class="fg" id="f-wt-wrap"><label id="fl-wt">WT (kg)</label><input id="f-dim-wt" type="number" min="0" step="0.1" value="" placeholder="0" oninput="previewShipCost()"></div>
-          </div>
-          <div class="fg" style="margin-bottom:12px"><label>ITEMS IN THIS SHIPMENT (for split)</label><input id="f-ship-qty" type="number" value="1" min="1" step="1" oninput="previewShipCost()"></div>
-          <div id="ship-preview" class="calc-result" style="display:none"></div>
-        </div>
-        <div class="fg" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-          <label>AU→CEBU SHIPPING COST FOR THIS ITEM (AUD) — 0 if not yet shipped</label>
-          <input id="f-ship-cost" type="number" min="0" step="0.01" placeholder="0.00" style="border-color:var(--accent)">
+        <div style="font-size:11px;color:var(--muted);padding:10px 12px;background:var(--bg3);border-radius:var(--radius);line-height:1.7">
+          Create shipments on the Shipments page first, then assign items here. Enter 0 for items still in Australia.
         </div>
       </div>
 
@@ -522,12 +570,27 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
       <div class="tab-panel" id="panel-sale">
         <div class="form-grid">
           <div class="fg"><label>DESIRED SELL PRICE (PHP)</label><input id="f-desired" type="number" min="0" step="1" placeholder="Owner's floor price"></div>
-          <div class="fg"><label>ACTUAL SELL PRICE (PHP)</label><input id="f-sold" type="number" min="0" step="1" placeholder="blank if unsold"></div>
+          <div class="fg"><label>SALE CHANNEL</label>
+            <select id="f-sale-channel" onchange="updateSaleCurrency()">
+              <option value="">— Not sold yet —</option>
+              <option value="ph_shop">PH Shop (physical store)</option>
+              <option value="ph_marketplace">Marketplace PH (Carousell, FB)</option>
+              <option value="au_marketplace">AU Marketplace (Carousell AU, FB)</option>
+              <option value="ebay">eBay</option>
+              <option value="direct">Direct / Manual Sale</option>
+            </select>
+          </div>
+          <div class="fg"><label>ACTUAL SELL PRICE</label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span id="f-sold-currency" style="font-family:var(--font-mono);font-size:12px;color:var(--accent);min-width:32px">PHP</span>
+              <input id="f-sold" type="number" min="0" step="0.01" placeholder="blank if unsold" style="flex:1">
+            </div>
+          </div>
+          <div class="fg"><label>SALE NOTES</label><input id="f-sale-notes" type="text" placeholder="Buyer name, date, platform link..."></div>
           <div class="fg"><label>STATUS</label>
             <select id="f-status"><option>In Stock</option><option>Sold</option></select>
           </div>
         </div>
-        <div class="calc-result" id="modal-profit-preview" style="margin-top:16px;display:none"></div>
       </div>
 
     </div>
@@ -541,20 +604,16 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
 <script>
 // ── STATE ────────────────────────────────────────────────────────────────────
 let state = {
-  items: [
-    {id:1,name:"Prismatic Evolutions ETB",type:"ETB",store:"JB Hi-Fi Melbourne",paid:79.99,loc:"Cebu",desired:3800,sold:4200,status:"Sold",notes:"Sold within 3 days",shipCost:12.50,shipMode:"air",shipUnit:"cm",dimL:35,dimW:25,dimH:15,dimWt:0.8},
-    {id:2,name:"Surging Sparks Booster Box",type:"Booster Box",store:"Target Brisbane",paid:179.95,loc:"Melbourne",desired:8500,sold:null,status:"In Stock",notes:"Waiting to ship",shipCost:0,shipMode:"air",shipUnit:"cm",dimL:50,dimW:35,dimH:30,dimWt:3.2},
-    {id:3,name:"Pikachu Promo Pin Collection",type:"Promo Box",store:"EB Games Sydney",paid:34.99,loc:"Cebu",desired:1600,sold:1750,status:"Sold",notes:"",shipCost:8.00,shipMode:"air",shipUnit:"cm",dimL:20,dimW:15,dimH:10,dimWt:0.3},
-    {id:4,name:"Stellar Crown Single Pack",type:"Single Pack",store:"Big W Melbourne",paid:9.99,loc:"Brisbane",desired:450,sold:null,status:"In Stock",notes:"",shipCost:0,shipMode:"air",shipUnit:"cm",dimL:10,dimW:7,dimH:2,dimWt:0.05},
-    {id:5,name:"Charizard ex Secret Rare",type:"Single Card",store:"Local Card Shop",paid:55.00,loc:"Melbourne",desired:2800,sold:null,status:"In Stock",notes:"PSA grade candidate",shipCost:0,shipMode:"air",shipUnit:"cm",dimL:12,dimW:8,dimH:1,dimWt:0.02},
-  ],
+  items: [],
+  shipments: [],
   nextId: 6,
+  nextShipmentId: 1,
   rates: {
     volDivisor: 6000,
     air: [{minKg:0,rate:12}],
     sea: [{minCbm:0,rate:150}]
   },
-  fxRate: 35
+  fxRate: 40
 };
 let editId = null;
 let modalUnit = 'cm';
@@ -615,11 +674,17 @@ function calcShipCost(mode, l, w, h, wt, unit, qty) {
   return { cost, cbm, volWt, chargeableWt, perItem };
 }
 
+function isAUSale(item) {
+  return item.saleChannel === 'au_marketplace' || item.saleChannel === 'ebay';
+}
 function calcItemProfit(item) {
   if (!item.sold || !item.paid) return null;
-  const revenue = item.sold / fx();
+  const revenue = isAUSale(item) ? item.sold : item.sold / fx();
   const totalCost = (item.paid || 0) + (item.shipCost || 0);
   return parseFloat((revenue - totalCost).toFixed(2));
+}
+function saleCurrencyLabel(item) {
+  return isAUSale(item) ? 'AUD' : 'PHP';
 }
 
 function calcItemMargin(item) {
@@ -631,12 +696,13 @@ function calcItemMargin(item) {
 
 // ── PAGE NAV ─────────────────────────────────────────────────────────────────
 function showPage(name) {
-  ['inventory','estimator','rates'].forEach(p => {
+  ['inventory','estimator','shipments','rates'].forEach(p => {
     document.getElementById('page-'+p).style.display = p===name ? '' : 'none';
     document.getElementById('nav-'+p).classList.toggle('active', p===name);
   });
   if (name === 'rates') renderRates();
   if (name === 'estimator') { renderSplitList(); calcEstimator(); }
+  if (name === 'shipments') renderShipments();
 }
 
 // ── KPIs ─────────────────────────────────────────────────────────────────────
@@ -709,7 +775,9 @@ function renderInventory() {
       <td class="mono" style="color:${item.shipCost > 0 ? 'var(--orange)' : 'var(--muted)'}">${item.shipCost > 0 ? fmtAUD(item.shipCost) : '—'}</td>
       <td><span class="badge ${locClass[item.loc]||''}">${item.loc}</span></td>
       <td class="mono muted">${fmtPHP(item.desired)}</td>
-      <td class="mono">${fmtPHP(item.sold)}</td>
+      <td class="mono">${item.sold ? (isAUSale(item) ? fmtAUD(item.sold) : fmtPHP(item.sold)) : '—'}</td>
+      <td class="muted" style="font-size:11px">${item.saleChannel ? saleChannelLabel(item.saleChannel) : '—'}</td>
+      <td class="muted" style="font-size:11px">${item.shipmentId ? ((state.shipments||[]).find(s=>String(s.id)===String(item.shipmentId))?.name||'—') : '—'}</td>
       <td><span class="badge ${item.owner==='Nica'?'badge-nica':item.owner==='Steph'?'badge-steph':'badge-shared'}">${item.owner||'—'}</span></td>
       <td><span class="badge ${item.status==='Sold'?'badge-sold':'badge-stock'}">${item.status}</span></td>
       <td class="${profitCls}">${profit===null?'—':fmtAUD(profit)}</td>
@@ -728,7 +796,7 @@ function openItemModal(id = null) {
   const item = id ? state.items.find(i=>i.id===id) : null;
   document.getElementById('modal-h2').textContent = id ? 'EDIT ITEM' : 'ADD ITEM';
   document.getElementById('f-name').value = item?.name||'';
-  document.getElementById('f-type').value = item?.type||'ETB';
+  document.getElementById('f-item-type').value = item?.type||'ETB';
   document.getElementById('f-store').value = item?.store||'';
   document.getElementById('f-paid').value = item?.paid||'';
   document.getElementById('f-loc').value = item?.loc||'Melbourne';
@@ -739,18 +807,9 @@ function openItemModal(id = null) {
   document.getElementById('f-ship-cost').value = item?.shipCost||'';
   document.getElementById('f-owner-item').value = item?.owner||'Nica';
   document.getElementById('f-ship-mode').value = item?.shipMode||'air';
-  modalUnit = item?.shipUnit||'cm';
-  setModalUnit(modalUnit);
-  document.getElementById('f-dim-l').value = item?.dimL||'';
-  document.getElementById('f-dim-w').value = item?.dimW||'';
-  document.getElementById('f-dim-h').value = item?.dimH||'';
-  document.getElementById('f-dim-wt').value = item?.dimWt||'';
-  document.getElementById('f-ship-qty').value = 1;
-  document.getElementById('ship-manual').checked = false;
-  toggleShipManual();
+
   switchTab('details');
   document.getElementById('item-modal').classList.add('open');
-  previewShipCost();
 }
 function closeItemModal() { document.getElementById('item-modal').classList.remove('open'); editId = null; }
 function switchTab(tab) {
@@ -760,77 +819,13 @@ function switchTab(tab) {
   });
   if (tab === 'sale') updateModalProfitPreview();
 }
-function setModalUnit(unit) {
-  modalUnit = unit;
-  const isCm = unit === 'cm';
-  document.getElementById('f-unit-cm').classList.toggle('active', isCm);
-  document.getElementById('f-unit-in').classList.toggle('active', !isCm);
-  document.getElementById('fl-l').textContent = isCm ? 'L (cm)' : 'L (in)';
-  document.getElementById('fl-w').textContent = isCm ? 'W (cm)' : 'W (in)';
-  document.getElementById('fl-h').textContent = isCm ? 'H (cm)' : 'H (in)';
-  document.getElementById('fl-wt').textContent = isCm ? 'WT (kg)' : 'WT (lbs)';
-  previewShipCost();
-}
-function toggleShipManual() {
-  const manual = document.getElementById('ship-manual').checked;
-  document.getElementById('ship-manual-input').style.display = manual ? '' : 'none';
-  document.getElementById('ship-calc-section').style.display = manual ? 'none' : '';
-  if (manual) {
-    document.getElementById('ship-preview').style.display = 'none';
-  }
-}
-function previewShipCost() {
-  const mode = document.getElementById('f-ship-mode').value;
-  const l = parseFloat(document.getElementById('f-dim-l').value)||0;
-  const w = parseFloat(document.getElementById('f-dim-w').value)||0;
-  const h = parseFloat(document.getElementById('f-dim-h').value)||0;
-  const wt = parseFloat(document.getElementById('f-dim-wt').value)||0;
-  const qty = parseInt(document.getElementById('f-ship-qty').value)||1;
-  const preview = document.getElementById('ship-preview');
-  if (!l || !w || !h) { preview.style.display = 'none'; return; }
-  if (mode === 'air' && !wt) { preview.style.display = 'none'; return; }
-  const res = calcShipCost(mode, l, w, h, wt, modalUnit, qty);
-  preview.style.display = 'flex';
-  const items = [];
-  if (mode === 'air') {
-    items.push(`<div class="calc-item"><div class="calc-item-label">VOL WEIGHT</div><div class="calc-item-val">${res.volWt.toFixed(2)} kg</div></div>`);
-    items.push(`<div class="calc-item"><div class="calc-item-label">CHARGEABLE</div><div class="calc-item-val">${res.chargeableWt.toFixed(2)} kg</div></div>`);
-  }
-  items.push(`<div class="calc-item"><div class="calc-item-label">CBM</div><div class="calc-item-val">${res.cbm.toFixed(4)}</div></div>`);
-  items.push(`<div class="calc-item"><div class="calc-item-label">TOTAL COST</div><div class="calc-item-val">AUD ${res.cost.toFixed(2)}</div></div>`);
-  items.push(`<div class="calc-item"><div class="calc-item-label">THIS ITEM (÷${qty})</div><div class="calc-item-val">AUD ${res.perItem.toFixed(2)}</div></div>`);
-  preview.innerHTML = items.join('');
-  document.getElementById('f-ship-cost').value = res.perItem.toFixed(2);
-  updateModalProfitPreview();
-}
-function updateModalProfitPreview() {
-  const paid = parseFloat(document.getElementById('f-paid').value)||0;
-  const shipCost = parseFloat(document.getElementById('f-ship-cost').value)||0;
-  const sold = parseFloat(document.getElementById('f-sold').value)||0;
-  const preview = document.getElementById('modal-profit-preview');
-  if (!paid || !sold) { preview.style.display = 'none'; return; }
-  const revenue = sold / fx();
-  const totalCost = paid + shipCost;
-  const profit = revenue - totalCost;
-  const margin = totalCost > 0 ? (profit/totalCost)*100 : 0;
-  preview.style.display = 'flex';
-  preview.innerHTML = [
-    `<div class="calc-item"><div class="calc-item-label">REVENUE (AUD)</div><div class="calc-item-val">AUD ${revenue.toFixed(2)}</div></div>`,
-    `<div class="calc-item"><div class="calc-item-label">TOTAL COST</div><div class="calc-item-val">AUD ${totalCost.toFixed(2)}</div></div>`,
-    `<div class="calc-item"><div class="calc-item-label">PROFIT</div><div class="calc-item-val" style="color:${profit>=0?'var(--green)':'var(--red)'}">AUD ${profit.toFixed(2)}</div></div>`,
-    `<div class="calc-item"><div class="calc-item-label">MARGIN</div><div class="calc-item-val" style="color:${margin>=0?'var(--green)':'var(--red)'}">${margin.toFixed(1)}%</div></div>`,
-  ].join('');
-}
 function saveItem() {
   const name = document.getElementById('f-name').value.trim();
   if (!name) { alert('Item name is required.'); switchTab('details'); return; }
-  const isManual = document.getElementById('ship-manual').checked;
-  const shipCostRaw = isManual
-    ? parseFloat(document.getElementById('f-ship-manual').value)||null
-    : parseFloat(document.getElementById('f-ship-cost').value)||null;
+  const shipCostRaw = parseFloat(document.getElementById('f-ship-cost').value)||0;
   const item = {
     id: editId || state.nextId++,
-    name, type: document.getElementById('f-type').value,
+    name, type: document.getElementById('f-item-type').value,
     owner: document.getElementById('f-owner-item').value,
     store: document.getElementById('f-store').value.trim(),
     paid: parseFloat(document.getElementById('f-paid').value)||0,
@@ -839,13 +834,10 @@ function saveItem() {
     desired: parseFloat(document.getElementById('f-desired').value)||null,
     sold: parseFloat(document.getElementById('f-sold').value)||null,
     status: document.getElementById('f-status').value,
-    shipCost: shipCostRaw !== null ? shipCostRaw : 0,
-    shipMode: document.getElementById('f-ship-mode').value,
-    shipUnit: modalUnit,
-    dimL: parseFloat(document.getElementById('f-dim-l').value)||null,
-    dimW: parseFloat(document.getElementById('f-dim-w').value)||null,
-    dimH: parseFloat(document.getElementById('f-dim-h').value)||null,
-    dimWt: parseFloat(document.getElementById('f-dim-wt').value)||null,
+    shipCost: shipCostRaw,
+    shipmentId: document.getElementById('f-shipment-id').value || null,
+    saleChannel: document.getElementById('f-sale-channel').value || null,
+    saleNotes: document.getElementById('f-sale-notes').value.trim(),
   };
   if (editId) state.items = state.items.map(i=>i.id===editId?item:i);
   else state.items.push(item);
@@ -997,12 +989,127 @@ function exportCebuCSV() {
   a.click(); URL.revokeObjectURL(url);
 }
 
+// ── SALE CHANNEL HELPERS ─────────────────────────────────────────────────────
+function saleChannelLabel(ch) {
+  const map = {
+    ph_shop: 'PH Shop', ph_marketplace: 'PH Marketplace',
+    au_marketplace: 'AU Marketplace', ebay: 'eBay', direct: 'Direct'
+  };
+  return map[ch] || ch;
+}
+function updateSaleCurrency() {
+  const ch = document.getElementById('f-sale-channel')?.value;
+  const label = document.getElementById('f-sold-currency');
+  if (!label) return;
+  const isAU = ch === 'au_marketplace' || ch === 'ebay';
+  label.textContent = isAU ? 'AUD' : 'PHP';
+  label.style.color = isAU ? 'var(--blue)' : 'var(--accent)';
+}
+
+// ── SHIPMENT FUNCTIONS ────────────────────────────────────────────────────────
+let editShipmentId = null;
+
+function populateShipmentDropdown(selectedId) {
+  const sel = document.getElementById('f-shipment-id');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Not assigned yet —</option>';
+  (state.shipments || []).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name + ' (' + s.type.toUpperCase() + ')';
+    if (String(s.id) === String(selectedId)) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function renderShipments() {
+  const tbody = document.getElementById('shipments-tbody');
+  const empty = document.getElementById('shipments-empty');
+  const shipments = state.shipments || [];
+  if (shipments.length === 0) { tbody.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  const statusColors = { preparing: 'badge-stock', shipped: 'badge-mel', delivered: 'badge-sold' };
+  tbody.innerHTML = shipments.map((s, idx) => {
+    const assignedItems = state.items.filter(i => String(i.shipmentId) === String(s.id));
+    const totalCost = assignedItems.reduce((sum, i) => sum + (i.shipCost || 0), 0);
+    return `<tr>
+      <td class="muted">${idx+1}</td>
+      <td style="font-weight:500">${s.name}</td>
+      <td><span class="badge badge-type">${s.type.toUpperCase()}</span></td>
+      <td><span class="badge ${statusColors[s.status]||'badge-type'}">${s.status}</span></td>
+      <td class="muted">${s.pickup || '—'}</td>
+      <td class="muted">${s.eta || '—'}</td>
+      <td style="font-weight:500;color:var(--accent)">${assignedItems.length} item${assignedItems.length!==1?'s':''}</td>
+      <td class="mono" style="color:var(--orange)">${totalCost > 0 ? fmtAUD(totalCost) : '—'}</td>
+      <td class="muted" style="font-size:11px;max-width:160px">${s.notes||'—'}</td>
+      <td style="white-space:nowrap;display:flex;gap:4px">
+        <button class="btn btn-edit" onclick="openShipmentModal(${s.id})">Edit</button>
+        <button class="btn btn-red" onclick="deleteShipment(${s.id})">Del</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openShipmentModal(id=null) {
+  editShipmentId = id;
+  const s = id ? (state.shipments||[]).find(x=>x.id===id) : null;
+  document.getElementById('shipment-modal-h2').textContent = id ? 'EDIT SHIPMENT' : 'NEW SHIPMENT';
+  document.getElementById('sm-name').value = s?.name||'';
+  document.getElementById('sm-type').value = s?.type||'air';
+  document.getElementById('sm-status').value = s?.status||'preparing';
+  document.getElementById('sm-pickup').value = s?.pickup||'';
+  document.getElementById('sm-eta').value = s?.eta||'';
+  document.getElementById('sm-cost').value = s?.cost||'';
+  document.getElementById('sm-notes').value = s?.notes||'';
+  document.getElementById('shipment-modal').classList.add('open');
+}
+function closeShipmentModal() {
+  document.getElementById('shipment-modal').classList.remove('open');
+  editShipmentId = null;
+}
+function saveShipment() {
+  const name = document.getElementById('sm-name').value.trim();
+  if (!name) { alert('Shipment name is required.'); return; }
+  const shipment = {
+    id: editShipmentId || state.nextShipmentId++,
+    name, type: document.getElementById('sm-type').value,
+    status: document.getElementById('sm-status').value,
+    pickup: document.getElementById('sm-pickup').value,
+    eta: document.getElementById('sm-eta').value,
+    cost: parseFloat(document.getElementById('sm-cost').value)||0,
+    notes: document.getElementById('sm-notes').value.trim(),
+  };
+  if (!state.shipments) state.shipments = [];
+  if (editShipmentId) state.shipments = state.shipments.map(s=>s.id===editShipmentId?shipment:s);
+  else state.shipments.push(shipment);
+  closeShipmentModal();
+  saveState();
+  renderShipments();
+}
+function deleteShipment(id) {
+  if (!confirm('Delete this shipment? Items assigned to it will be unassigned.')) return;
+  state.shipments = (state.shipments||[]).filter(s=>s.id!==id);
+  state.items = state.items.map(i => i.shipmentId === id ? {...i, shipmentId: null} : i);
+  saveState();
+  renderShipments();
+  renderInventory();
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function initApp(data) {
   if (data && data.items) {
     state = data;
   }
   document.getElementById('fx-rate').value = state.fxRate || 35;
+  // Reset all filters to "All" on load
+  const fType = document.getElementById('f-type');
+  const fLoc = document.getElementById('f-loc');
+  const fStatus = document.getElementById('f-status');
+  const fOwner = document.getElementById('f-owner');
+  if (fType) fType.value = '';
+  if (fLoc) fLoc.value = '';
+  if (fStatus) fStatus.value = '';
+  if (fOwner) fOwner.value = '';
   renderInventory();
   renderSplitList();
 }
