@@ -546,6 +546,7 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
           <div class="fg"><label>OWNER</label>
             <select id="f-owner-item"><option>Nica</option><option>Steph</option><option>Shared</option></select>
           </div>
+          <div class="fg"><label>QUANTITY</label><input id="f-qty" type="number" min="1" max="99" value="1" placeholder="1"></div>
           <div class="fg full"><label>NOTES</label><textarea id="f-notes" placeholder="Optional notes…"></textarea></div>
         </div>
       </div>
@@ -782,8 +783,8 @@ function renderInventory() {
       <td><span class="badge ${item.status==='Sold'?'badge-sold':'badge-stock'}">${item.status}</span></td>
       <td class="${profitCls}">${profit===null?'—':fmtAUD(profit)}</td>
       <td class="${marginCls}">${margin===null?'—':(margin*100).toFixed(1)+'%'}</td>
-      <td style="white-space:nowrap;display:flex;gap:4px">
-        <button class="btn btn-edit" onclick="openItemModal(${item.id})">Edit</button>
+      <td style="white-space:nowrap;min-width:90px">
+        <button class="btn btn-edit" onclick="openItemModal(${item.id})" style="margin-right:4px">Edit</button>
         <button class="btn btn-red" onclick="deleteItem(${item.id})">Del</button>
       </td>
     </tr>`;
@@ -801,6 +802,8 @@ function openItemModal(id = null) {
     editId = id;
     const item = id ? state.items.find(i=>i.id===id) : null;
     document.getElementById('modal-h2').textContent = id ? 'EDIT ITEM' : 'ADD ITEM';
+  const qtyField = document.getElementById('f-qty');
+  if (qtyField) { qtyField.value = 1; qtyField.closest('.fg').style.display = id ? 'none' : ''; }
     document.getElementById('f-name').value = item?.name||'';
     document.getElementById('f-item-type').value = item?.type||'ETB';
     document.getElementById('f-store').value = item?.store||'';
@@ -851,8 +854,14 @@ function saveItem() {
     saleChannel: document.getElementById('f-sale-channel').value || null,
     saleNotes: document.getElementById('f-sale-notes').value.trim(),
   };
-  if (editId) state.items = state.items.map(i=>i.id===editId?item:i);
-  else state.items.push(item);
+  const qty = editId ? 1 : (parseInt(document.getElementById('f-qty')?.value) || 1);
+  if (editId) {
+    state.items = state.items.map(i=>i.id===editId?item:i);
+  } else {
+    for (let q = 0; q < qty; q++) {
+      state.items.push({...item, id: state.nextId++});
+    }
+  }
   closeItemModal();
   saveState();
   renderInventory();
