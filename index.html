@@ -58,7 +58,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-sans);
 .page-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
 
 /* KPI STRIP */
-.kpi-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; padding: 20px 28px; }
+.kpi-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; padding: 20px 28px; }
 .kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
 .kpi-label { font-size: 10px; color: var(--muted); font-family: var(--font-mono); letter-spacing: 0.06em; margin-bottom: 6px; }
 .kpi-val { font-size: 18px; font-weight: 600; color: var(--text); line-height: 1; }
@@ -109,6 +109,9 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
 .profit-pos { color: var(--green); font-family: var(--font-mono); font-size: 11px; font-weight: 700; }
 .profit-neg { color: var(--red); font-family: var(--font-mono); font-size: 11px; font-weight: 700; }
 .profit-nil { color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+.badge-nica { background: rgba(232,200,74,0.15); color: var(--accent); border: 1px solid rgba(232,200,74,0.3); }
+.badge-steph { background: rgba(74,158,240,0.15); color: var(--blue); border: 1px solid rgba(74,158,240,0.3); }
+.badge-shared { background: rgba(160,122,240,0.15); color: var(--purple); border: 1px solid rgba(160,122,240,0.3); }
 
 /* EMPTY */
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
@@ -189,7 +192,7 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
 
 /* Responsive */
 @media (max-width: 900px) {
-  .kpi-strip { grid-template-columns: repeat(3, 1fr); }
+  .kpi-strip { grid-template-columns: repeat(4, 1fr); }
   .estimator-grid, .rates-grid { grid-template-columns: 1fr; }
   .sidebar { width: 180px; min-width: 180px; }
 }
@@ -212,7 +215,8 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
   projectId: "pokerookie-tcg",
   storageBucket: "pokerookie-tcg.firebasestorage.app",
   messagingSenderId: "595171331918",
-  appId: "1:595171331918:web:15b934841b0afc09c0181f"
+  appId: "1:595171331918:web:15b934841b0afc09c0181f",
+  measurementId: "G-4PVMZK3QQ5"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -298,7 +302,7 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
             <tr>
               <th>#</th><th>ITEM</th><th>TYPE</th><th>STORE</th>
               <th>PAID (AUD)</th><th>SHIP COST (AUD)</th><th>LOCATION</th>
-              <th>DESIRED (PHP)</th><th>SOLD (PHP)</th><th>STATUS</th>
+              <th>DESIRED (PHP)</th><th>SOLD (PHP)</th><th>OWNER</th><th>STATUS</th>
               <th>PROFIT (AUD)</th><th>MARGIN</th><th></th>
             </tr>
           </thead>
@@ -470,6 +474,9 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
           <div class="fg"><label>CURRENT LOCATION</label>
             <select id="f-loc"><option>Melbourne</option><option>Brisbane</option><option>Cebu</option></select>
           </div>
+          <div class="fg"><label>OWNER</label>
+            <select id="f-owner-item"><option>Nica</option><option>Steph</option><option>Shared</option></select>
+          </div>
           <div class="fg full"><label>NOTES</label><textarea id="f-notes" placeholder="Optional notes…"></textarea></div>
         </div>
       </div>
@@ -478,7 +485,7 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
       <div class="tab-panel" id="panel-shipping">
         <div class="manual-toggle" style="margin-bottom:14px">
           <input type="checkbox" id="ship-manual" onchange="toggleShipManual()">
-          <label for="ship-manual">Manual override — I'll enter the shipping cost directly</label>
+          <label for="ship-manual">Add AU→Cebu shipping cost manually</label>
         </div>
         <div id="ship-manual-input" style="display:none;margin-bottom:14px">
           <div class="fg"><label>SHIPPING COST (AUD) — MANUAL</label><input id="f-ship-manual" type="number" min="0" step="0.01" placeholder="0.00" oninput="previewShipCost()"></div>
@@ -506,15 +513,15 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
           <div id="ship-preview" class="calc-result" style="display:none"></div>
         </div>
         <div class="fg" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-          <label>FINAL SHIPPING COST ASSIGNED TO THIS ITEM (AUD)</label>
-          <input id="f-ship-cost" type="number" min="0" step="0.01" placeholder="Auto-calculated or enter manually" style="border-color:var(--accent)">
+          <label>AU→CEBU SHIPPING COST FOR THIS ITEM (AUD) — 0 if not yet shipped</label>
+          <input id="f-ship-cost" type="number" min="0" step="0.01" placeholder="0.00" style="border-color:var(--accent)">
         </div>
       </div>
 
       <!-- Tab 3: Sale -->
       <div class="tab-panel" id="panel-sale">
         <div class="form-grid">
-          <div class="fg"><label>DESIRED SELL PRICE (PHP)</label><input id="f-desired" type="number" min="0" step="1" placeholder="0"></div>
+          <div class="fg"><label>DESIRED SELL PRICE (PHP)</label><input id="f-desired" type="number" min="0" step="1" placeholder="Owner's floor price"></div>
           <div class="fg"><label>ACTUAL SELL PRICE (PHP)</label><input id="f-sold" type="number" min="0" step="1" placeholder="blank if unsold"></div>
           <div class="fg"><label>STATUS</label>
             <select id="f-status"><option>In Stock</option><option>Sold</option></select>
@@ -536,10 +543,10 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
 let state = {
   items: [
     {id:1,name:"Prismatic Evolutions ETB",type:"ETB",store:"JB Hi-Fi Melbourne",paid:79.99,loc:"Cebu",desired:3800,sold:4200,status:"Sold",notes:"Sold within 3 days",shipCost:12.50,shipMode:"air",shipUnit:"cm",dimL:35,dimW:25,dimH:15,dimWt:0.8},
-    {id:2,name:"Surging Sparks Booster Box",type:"Booster Box",store:"Target Brisbane",paid:179.95,loc:"Melbourne",desired:8500,sold:null,status:"In Stock",notes:"Waiting to ship",shipCost:null,shipMode:"air",shipUnit:"cm",dimL:50,dimW:35,dimH:30,dimWt:3.2},
+    {id:2,name:"Surging Sparks Booster Box",type:"Booster Box",store:"Target Brisbane",paid:179.95,loc:"Melbourne",desired:8500,sold:null,status:"In Stock",notes:"Waiting to ship",shipCost:0,shipMode:"air",shipUnit:"cm",dimL:50,dimW:35,dimH:30,dimWt:3.2},
     {id:3,name:"Pikachu Promo Pin Collection",type:"Promo Box",store:"EB Games Sydney",paid:34.99,loc:"Cebu",desired:1600,sold:1750,status:"Sold",notes:"",shipCost:8.00,shipMode:"air",shipUnit:"cm",dimL:20,dimW:15,dimH:10,dimWt:0.3},
-    {id:4,name:"Stellar Crown Single Pack",type:"Single Pack",store:"Big W Melbourne",paid:9.99,loc:"Brisbane",desired:450,sold:null,status:"In Stock",notes:"",shipCost:null,shipMode:"air",shipUnit:"cm",dimL:10,dimW:7,dimH:2,dimWt:0.05},
-    {id:5,name:"Charizard ex Secret Rare",type:"Single Card",store:"Local Card Shop",paid:55.00,loc:"Melbourne",desired:2800,sold:null,status:"In Stock",notes:"PSA grade candidate",shipCost:null,shipMode:"air",shipUnit:"cm",dimL:12,dimW:8,dimH:1,dimWt:0.02},
+    {id:4,name:"Stellar Crown Single Pack",type:"Single Pack",store:"Big W Melbourne",paid:9.99,loc:"Brisbane",desired:450,sold:null,status:"In Stock",notes:"",shipCost:0,shipMode:"air",shipUnit:"cm",dimL:10,dimW:7,dimH:2,dimWt:0.05},
+    {id:5,name:"Charizard ex Secret Rare",type:"Single Card",store:"Local Card Shop",paid:55.00,loc:"Melbourne",desired:2800,sold:null,status:"In Stock",notes:"PSA grade candidate",shipCost:0,shipMode:"air",shipUnit:"cm",dimL:12,dimW:8,dimH:1,dimWt:0.02},
   ],
   nextId: 6,
   rates: {
@@ -633,20 +640,35 @@ function showPage(name) {
 }
 
 // ── KPIs ─────────────────────────────────────────────────────────────────────
+function ownerProfit(items, owner) {
+  // Solo items count fully, Shared items count 50%
+  const solo = items.filter(i=>i.owner===owner&&i.sold).reduce((s,i)=>{ const p=calcItemProfit(i); return s+(p||0); },0);
+  const shared = items.filter(i=>i.owner==='Shared'&&i.sold).reduce((s,i)=>{ const p=calcItemProfit(i); return s+(p||0)*0.5; },0);
+  return solo + shared;
+}
+function ownerSpent(items, owner) {
+  const solo = items.filter(i=>i.owner===owner).reduce((s,i)=>s+(i.paid||0)+(i.shipCost||0),0);
+  const shared = items.filter(i=>i.owner==='Shared').reduce((s,i)=>s+((i.paid||0)+(i.shipCost||0))*0.5,0);
+  return solo + shared;
+}
 function renderKPIs(items) {
   const spent = items.reduce((s,i)=>s+(i.paid||0),0);
   const shipSpent = items.reduce((s,i)=>s+(i.shipCost||0),0);
-  const revenue = items.filter(i=>i.sold).reduce((s,i)=>s+(i.sold/fx()),0);
-  const profit = items.filter(i=>i.sold).reduce((s,i)=>{ const p=calcItemProfit(i); return s+(p||0); },0);
   const instock = items.filter(i=>i.status==='In Stock').length;
   const sold = items.filter(i=>i.status==='Sold').length;
+  const nicaP = ownerProfit(items,'Nica');
+  const stephP = ownerProfit(items,'Steph');
+  const nicaSpent = ownerSpent(items,'Nica');
+  const stephSpent = ownerSpent(items,'Steph');
+  const sharedCount = items.filter(i=>i.owner==='Shared').length;
   document.getElementById('kpi-strip').innerHTML = [
-    ['ITEMS', items.length, ''],
+    ['ITEMS', items.length + (sharedCount ? ` (${sharedCount} shared)` : ''), ''],
     ['IN STOCK', instock, 'yellow'],
     ['SOLD', sold, 'green'],
-    ['TOTAL SPENT', fmtAUD(spent + shipSpent), ''],
-    ['REVENUE', fmtAUD(revenue), 'green'],
-    ['PROFIT', fmtAUD(profit), profit >= 0 ? 'green' : 'red'],
+    ['NICA SPENT', fmtAUD(nicaSpent), ''],
+    ['NICA PROFIT', fmtAUD(nicaP), nicaP >= 0 ? 'green' : 'red'],
+    ['STEPH SPENT', fmtAUD(stephSpent), ''],
+    ['STEPH PROFIT', fmtAUD(stephP), stephP >= 0 ? 'green' : 'red'],
   ].map(([l,v,cls])=>`<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-val ${cls}">${v}</div></div>`).join('');
   document.getElementById('inv-sub').textContent = `${items.length} item${items.length!==1?'s':''} tracked`;
 }
@@ -657,11 +679,13 @@ function renderInventory() {
   const fType = document.getElementById('f-type')?.value||'';
   const fLoc = document.getElementById('f-loc')?.value||'';
   const fStatus = document.getElementById('f-status')?.value||'';
+  const fOwner = document.getElementById('f-owner')?.value||'';
   let filtered = state.items.filter(i => {
     if (search && !i.name.toLowerCase().includes(search) && !(i.store||'').toLowerCase().includes(search)) return false;
     if (fType && i.type !== fType) return false;
     if (fLoc && i.loc !== fLoc) return false;
     if (fStatus && i.status !== fStatus) return false;
+    if (fOwner && i.owner !== fOwner) return false;
     return true;
   });
   renderKPIs(filtered);
@@ -682,10 +706,11 @@ function renderInventory() {
       <td><span class="badge badge-type">${item.type}</span></td>
       <td class="muted" style="font-size:11px;max-width:120px">${item.store||'—'}</td>
       <td class="mono">${fmtAUD(item.paid)}</td>
-      <td class="mono" style="color:var(--orange)">${item.shipCost ? fmtAUD(item.shipCost) : '<span style="color:var(--muted)">—</span>'}</td>
+      <td class="mono" style="color:${item.shipCost > 0 ? 'var(--orange)' : 'var(--muted)'}">${item.shipCost > 0 ? fmtAUD(item.shipCost) : '—'}</td>
       <td><span class="badge ${locClass[item.loc]||''}">${item.loc}</span></td>
       <td class="mono muted">${fmtPHP(item.desired)}</td>
       <td class="mono">${fmtPHP(item.sold)}</td>
+      <td><span class="badge ${item.owner==='Nica'?'badge-nica':item.owner==='Steph'?'badge-steph':'badge-shared'}">${item.owner||'—'}</span></td>
       <td><span class="badge ${item.status==='Sold'?'badge-sold':'badge-stock'}">${item.status}</span></td>
       <td class="${profitCls}">${profit===null?'—':fmtAUD(profit)}</td>
       <td class="${marginCls}">${margin===null?'—':(margin*100).toFixed(1)+'%'}</td>
@@ -712,6 +737,7 @@ function openItemModal(id = null) {
   document.getElementById('f-sold').value = item?.sold||'';
   document.getElementById('f-status').value = item?.status||'In Stock';
   document.getElementById('f-ship-cost').value = item?.shipCost||'';
+  document.getElementById('f-owner-item').value = item?.owner||'Nica';
   document.getElementById('f-ship-mode').value = item?.shipMode||'air';
   modalUnit = item?.shipUnit||'cm';
   setModalUnit(modalUnit);
@@ -805,6 +831,7 @@ function saveItem() {
   const item = {
     id: editId || state.nextId++,
     name, type: document.getElementById('f-type').value,
+    owner: document.getElementById('f-owner-item').value,
     store: document.getElementById('f-store').value.trim(),
     paid: parseFloat(document.getElementById('f-paid').value)||0,
     loc: document.getElementById('f-loc').value,
@@ -812,7 +839,7 @@ function saveItem() {
     desired: parseFloat(document.getElementById('f-desired').value)||null,
     sold: parseFloat(document.getElementById('f-sold').value)||null,
     status: document.getElementById('f-status').value,
-    shipCost: shipCostRaw,
+    shipCost: shipCostRaw !== null ? shipCostRaw : 0,
     shipMode: document.getElementById('f-ship-mode').value,
     shipUnit: modalUnit,
     dimL: parseFloat(document.getElementById('f-dim-l').value)||null,
