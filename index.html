@@ -217,7 +217,7 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
   messagingSenderId: "595171331918",
   appId: "1:595171331918:web:15b934841b0afc09c0181f",
   measurementId: "G-4PVMZK3QQ5"
-  };
+ };
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
@@ -540,7 +540,7 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
           <div class="fg"><label>STORE / SOURCE (AU)</label><input id="f-store" type="text" placeholder="e.g. JB Hi-Fi Melbourne"></div>
           <div class="fg"><label>PURCHASE PRICE (AUD)</label><input id="f-paid" type="number" min="0" step="0.01" placeholder="0.00"></div>
           <div class="fg"><label>CURRENT LOCATION</label>
-            <select id="f-loc"><option>Melbourne</option><option>Brisbane</option><option>Cebu</option></select>
+            <select id="f-item-loc"><option>Melbourne</option><option>Brisbane</option><option>Cebu</option></select>
           </div>
           <div class="fg"><label>OWNER</label>
             <select id="f-owner-item"><option>Nica</option><option>Steph</option><option>Shared</option></select>
@@ -588,7 +588,7 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
           </div>
           <div class="fg"><label>SALE NOTES</label><input id="f-sale-notes" type="text" placeholder="Buyer name, date, platform link..."></div>
           <div class="fg"><label>STATUS</label>
-            <select id="f-status"><option>In Stock</option><option>Sold</option></select>
+            <select id="f-item-status"><option>In Stock</option><option>Sold</option></select>
           </div>
         </div>
       </div>
@@ -776,8 +776,6 @@ function renderInventory() {
       <td><span class="badge ${locClass[item.loc]||''}">${item.loc}</span></td>
       <td class="mono muted">${fmtPHP(item.desired)}</td>
       <td class="mono">${item.sold ? (isAUSale(item) ? fmtAUD(item.sold) : fmtPHP(item.sold)) : '—'}</td>
-      <td class="muted" style="font-size:11px">${item.saleChannel ? saleChannelLabel(item.saleChannel) : '—'}</td>
-      <td class="muted" style="font-size:11px">${item.shipmentId ? ((state.shipments||[]).find(s=>String(s.id)===String(item.shipmentId))?.name||'—') : '—'}</td>
       <td><span class="badge ${item.owner==='Nica'?'badge-nica':item.owner==='Steph'?'badge-steph':'badge-shared'}">${item.owner||'—'}</span></td>
       <td><span class="badge ${item.status==='Sold'?'badge-sold':'badge-stock'}">${item.status}</span></td>
       <td class="${profitCls}">${profit===null?'—':fmtAUD(profit)}</td>
@@ -792,6 +790,11 @@ function renderInventory() {
 
 // ── ITEM MODAL ────────────────────────────────────────────────────────────────
 function openItemModal(id = null) {
+  // Preserve filter state before opening modal
+  const savedType = document.getElementById('f-type')?.value;
+  const savedLoc = document.getElementById('f-loc')?.value;
+  const savedStatus = document.getElementById('f-status')?.value;
+  const savedOwner = document.getElementById('f-owner')?.value;
   editId = id;
   const item = id ? state.items.find(i=>i.id===id) : null;
   document.getElementById('modal-h2').textContent = id ? 'EDIT ITEM' : 'ADD ITEM';
@@ -799,17 +802,22 @@ function openItemModal(id = null) {
   document.getElementById('f-item-type').value = item?.type||'ETB';
   document.getElementById('f-store').value = item?.store||'';
   document.getElementById('f-paid').value = item?.paid||'';
-  document.getElementById('f-loc').value = item?.loc||'Melbourne';
+  document.getElementById('f-item-loc').value = item?.loc||'Melbourne';
   document.getElementById('f-notes').value = item?.notes||'';
   document.getElementById('f-desired').value = item?.desired||'';
   document.getElementById('f-sold').value = item?.sold||'';
-  document.getElementById('f-status').value = item?.status||'In Stock';
+  document.getElementById('f-item-status').value = item?.status||'In Stock';
   document.getElementById('f-ship-cost').value = item?.shipCost||'';
   document.getElementById('f-owner-item').value = item?.owner||'Nica';
   document.getElementById('f-ship-mode').value = item?.shipMode||'air';
 
   switchTab('details');
   document.getElementById('item-modal').classList.add('open');
+  // Restore filter state after modal fields populated
+  if (savedType !== undefined) document.getElementById('f-type').value = savedType;
+  if (savedLoc !== undefined) document.getElementById('f-loc').value = savedLoc;
+  if (savedStatus !== undefined) document.getElementById('f-status').value = savedStatus;
+  if (savedOwner !== undefined) document.getElementById('f-owner').value = savedOwner;
 }
 function closeItemModal() { document.getElementById('item-modal').classList.remove('open'); editId = null; }
 function switchTab(tab) {
@@ -829,11 +837,11 @@ function saveItem() {
     owner: document.getElementById('f-owner-item').value,
     store: document.getElementById('f-store').value.trim(),
     paid: parseFloat(document.getElementById('f-paid').value)||0,
-    loc: document.getElementById('f-loc').value,
+    loc: document.getElementById('f-item-loc').value,
     notes: document.getElementById('f-notes').value.trim(),
     desired: parseFloat(document.getElementById('f-desired').value)||null,
     sold: parseFloat(document.getElementById('f-sold').value)||null,
-    status: document.getElementById('f-status').value,
+    status: document.getElementById('f-item-status').value,
     shipCost: shipCostRaw,
     shipmentId: document.getElementById('f-shipment-id').value || null,
     saleChannel: document.getElementById('f-sale-channel').value || null,
