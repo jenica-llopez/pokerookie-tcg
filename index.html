@@ -297,6 +297,10 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
         <option value="">All status</option>
         <option>In Stock</option><option>Sold</option>
       </select>
+    <select class="filter" id="f-owner" onchange="renderInventory()">
+      <option value="">All owners</option>
+      <option>Nica</option><option>Steph</option><option>Shared</option>
+    </select>
     </div>
     <div class="table-wrap">
       <div class="table-container">
@@ -566,6 +570,7 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
         </div>
       </div>
 
+      <select id="f-ship-mode" style="display:none"><option value="air">Air</option><option value="sea">Sea</option></select>
       <!-- Tab 3: Sale -->
       <div class="tab-panel" id="panel-sale">
         <div class="form-grid">
@@ -790,34 +795,37 @@ function renderInventory() {
 
 // ── ITEM MODAL ────────────────────────────────────────────────────────────────
 function openItemModal(id = null) {
-  // Preserve filter state before opening modal
-  const savedType = document.getElementById('f-type')?.value;
-  const savedLoc = document.getElementById('f-loc')?.value;
-  const savedStatus = document.getElementById('f-status')?.value;
-  const savedOwner = document.getElementById('f-owner')?.value;
-  editId = id;
-  const item = id ? state.items.find(i=>i.id===id) : null;
-  document.getElementById('modal-h2').textContent = id ? 'EDIT ITEM' : 'ADD ITEM';
-  document.getElementById('f-name').value = item?.name||'';
-  document.getElementById('f-item-type').value = item?.type||'ETB';
-  document.getElementById('f-store').value = item?.store||'';
-  document.getElementById('f-paid').value = item?.paid||'';
-  document.getElementById('f-item-loc').value = item?.loc||'Melbourne';
-  document.getElementById('f-notes').value = item?.notes||'';
-  document.getElementById('f-desired').value = item?.desired||'';
-  document.getElementById('f-sold').value = item?.sold||'';
-  document.getElementById('f-item-status').value = item?.status||'In Stock';
-  document.getElementById('f-ship-cost').value = item?.shipCost||'';
-  document.getElementById('f-owner-item').value = item?.owner||'Nica';
-  document.getElementById('f-ship-mode').value = item?.shipMode||'air';
-
-  switchTab('details');
-  document.getElementById('item-modal').classList.add('open');
-  // Restore filter state after modal fields populated
-  if (savedType !== undefined) document.getElementById('f-type').value = savedType;
-  if (savedLoc !== undefined) document.getElementById('f-loc').value = savedLoc;
-  if (savedStatus !== undefined) document.getElementById('f-status').value = savedStatus;
-  if (savedOwner !== undefined) document.getElementById('f-owner').value = savedOwner;
+  try {
+    // Preserve filter state before opening modal
+    const savedType = document.getElementById('f-type')?.value;
+    const savedLoc = document.getElementById('f-loc')?.value;
+    const savedStatus = document.getElementById('f-status')?.value;
+    const savedOwner = document.getElementById('f-owner')?.value||'';
+    editId = id;
+    const item = id ? state.items.find(i=>i.id===id) : null;
+    document.getElementById('modal-h2').textContent = id ? 'EDIT ITEM' : 'ADD ITEM';
+    document.getElementById('f-name').value = item?.name||'';
+    document.getElementById('f-item-type').value = item?.type||'ETB';
+    document.getElementById('f-store').value = item?.store||'';
+    document.getElementById('f-paid').value = item?.paid||'';
+    document.getElementById('f-item-loc').value = item?.loc||'Melbourne';
+    document.getElementById('f-notes').value = item?.notes||'';
+    document.getElementById('f-desired').value = item?.desired||'';
+    document.getElementById('f-sold').value = item?.sold||'';
+    document.getElementById('f-item-status').value = item?.status||'In Stock';
+    document.getElementById('f-ship-cost').value = item?.shipCost||'';
+    document.getElementById('f-owner-item').value = item?.owner||'Nica';
+    if(document.getElementById('f-ship-mode')) document.getElementById('f-ship-mode').value = item?.shipMode||'air';
+  
+    switchTab('details');
+    document.getElementById('item-modal').classList.add('open');
+    // Restore filter state after modal fields populated
+    if (savedType !== undefined) document.getElementById('f-type').value = savedType;
+    if (savedLoc !== undefined) document.getElementById('f-loc').value = savedLoc;
+    if (savedStatus !== undefined) document.getElementById('f-status').value = savedStatus;
+    if (savedOwner !== undefined) if(document.getElementById('f-owner')) document.getElementById('f-owner').value = savedOwner;
+  }
+  } catch(e) { console.error('openItemModal error:', e); }
 }
 function closeItemModal() { document.getElementById('item-modal').classList.remove('open'); editId = null; }
 function switchTab(tab) {
