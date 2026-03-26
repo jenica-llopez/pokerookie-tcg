@@ -821,7 +821,6 @@ function openItemModal(id = null) {
     if (savedLoc !== undefined) document.getElementById('f-loc').value = savedLoc;
     if (savedStatus !== undefined) document.getElementById('f-status').value = savedStatus;
     if (savedOwner !== undefined) if(document.getElementById('f-owner')) document.getElementById('f-owner').value = savedOwner;
-  }
   } catch(e) { console.error('openItemModal error:', e); }
 }
 function closeItemModal() { document.getElementById('item-modal').classList.remove('open'); editId = null; }
@@ -830,8 +829,8 @@ function switchTab(tab) {
     document.getElementById('panel-'+t).classList.toggle('active', t===tab);
     document.getElementById('tab-'+t).classList.toggle('active', t===tab);
   });
-  if (tab === 'sale') updateModalProfitPreview();
 }
+
 function saveItem() {
   const name = document.getElementById('f-name').value.trim();
   if (!name) { alert('Item name is required.'); switchTab('details'); return; }
