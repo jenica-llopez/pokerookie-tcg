@@ -783,9 +783,11 @@ function renderInventory() {
       <td><span class="badge ${item.status==='Sold'?'badge-sold':'badge-stock'}">${item.status}</span></td>
       <td class="${profitCls}">${profit===null?'—':fmtAUD(profit)}</td>
       <td class="${marginCls}">${margin===null?'—':(margin*100).toFixed(1)+'%'}</td>
-      <td style="white-space:nowrap;min-width:90px">
-        <button class="btn btn-edit" onclick="openItemModal(${item.id})" style="margin-right:4px">Edit</button>
-        <button class="btn btn-red" onclick="deleteItem(${item.id})">Del</button>
+      <td style="min-width:52px">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <button class="btn btn-edit" onclick="openItemModal(${item.id})">Edit</button>
+          <button class="btn btn-red" onclick="deleteItem(${item.id})">Del</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
