@@ -117,6 +117,9 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
 .empty-icon { font-size: 40px; margin-bottom: 12px; }
 .empty-text { font-size: 14px; }
+.view-toggle { display: flex; gap: 4px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 3px; width: fit-content; margin: 0 28px 14px; }
+.view-btn { padding: 6px 20px; border: none; background: transparent; color: var(--muted); font-size: 12px; font-family: var(--font-mono); border-radius: 6px; cursor: pointer; letter-spacing: 0.05em; font-weight: 700; transition: all 0.15s; }
+.view-btn.active { background: var(--bg3); color: var(--accent); }
 
 /* MODAL */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
@@ -299,18 +302,32 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
       <option>Nica</option><option>Steph</option><option>Shared</option>
     </select>
     </div>
+    <div class="view-toggle">
+      <button class="view-btn active" id="vbtn-stock" onclick="switchView('stock')">STOCK</button>
+      <button class="view-btn" id="vbtn-sales" onclick="switchView('sales')">SALES</button>
+    </div>
     <div class="table-wrap">
       <div class="table-container">
-        <table>
+        <table id="stock-table">
           <thead>
             <tr>
               <th>#</th><th>ITEM</th><th>TYPE</th><th>STORE</th>
-              <th>PAID (AUD)</th><th>SHIP COST (AUD)</th><th>LOCATION</th>
-              <th>DESIRED (PHP)</th><th>SOLD (PHP)</th><th>OWNER</th><th>STATUS</th>
-              <th>PROFIT (AUD)</th><th>MARGIN</th><th></th>
+              <th>PAID (AUD)</th><th>LOCATION</th><th>OWNER</th>
+              <th>STATUS</th><th></th>
             </tr>
           </thead>
           <tbody id="inv-tbody"></tbody>
+        </table>
+        <table id="sales-table" style="display:none">
+          <thead>
+            <tr>
+              <th>#</th><th>ITEM</th><th>TYPE</th><th>OWNER</th>
+              <th>PAID (AUD)</th><th>SHIP COST (AUD)</th>
+              <th>SOLD</th><th>CHANNEL</th><th>STATUS</th>
+              <th>PROFIT (AUD)</th><th>MARGIN %</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="sales-tbody"></tbody>
         </table>
         <div class="empty" id="inv-empty" style="display:none">
           <div class="empty-icon">◈</div>
@@ -625,13 +642,17 @@ let splitItems = [];
 // ── PERSIST — Firebase Realtime Database ─────────────────────────────────────
 let _saveTimer = null;
 function saveState() {
-  state.fxRate = parseFloat(document.getElementById('fx-rate').value) || 35;
-  // Debounce: wait 800ms after last change before writing to Firebase
+  state.fxRate = parseFloat(document.getElementById('fx-rate').value) || 40;
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(() => {
-    if (window._fbSet) {
-      window._fbSet(state).catch(e => console.warn('Firebase save error:', e));
+    // SAFETY: never overwrite Firebase if local state has no items
+    // This prevents an empty page load from wiping real data
+    if (!window._fbSet) return;
+    if (!state.items || state.items.length === 0) {
+      console.warn('saveState blocked — items empty, skipping Firebase write');
+      return;
     }
+    window._fbSet(state).catch(e => console.warn('Firebase save error:', e));
   }, 800);
 }
 function loadState() {
@@ -763,34 +784,50 @@ function renderInventory() {
   if (filtered.length === 0) { tbody.innerHTML = ''; empty.style.display = ''; return; }
   empty.style.display = 'none';
   const locClass = {Melbourne:'badge-mel',Brisbane:'badge-bne',Cebu:'badge-ceb'};
+  const ownerBadge = (o) => `<span class="badge ${o==='Nica'?'badge-nica':o==='Steph'?'badge-steph':'badge-shared'}">${o||'—'}</span>`;
+  const actionBtns = (id) => `<td style="min-width:52px"><div style="display:flex;flex-direction:column;gap:4px"><button class="btn btn-edit" onclick="openItemModal(${id})">Edit</button><button class="btn btn-red" onclick="deleteItem(${id})">Del</button></div></td>`;
+
+  // Stock table
   tbody.innerHTML = filtered.map((item, idx) => {
-    const profit = calcItemProfit(item);
-    const margin = calcItemMargin(item);
-    const rowClass = profit !== null && profit < 0 ? 'row-loss' : item.status === 'Sold' ? 'row-sold' : '';
-    const profitCls = profit === null ? 'profit-nil' : profit >= 0 ? 'profit-pos' : 'profit-neg';
-    const marginCls = margin === null ? 'profit-nil' : margin >= 0 ? 'profit-pos' : 'profit-neg';
+    const rowClass = item.status === 'Sold' ? 'row-sold' : '';
     return `<tr class="${rowClass}">
       <td class="muted">${idx+1}</td>
       <td style="font-weight:500;max-width:180px">${item.name}</td>
       <td><span class="badge badge-type">${item.type}</span></td>
       <td class="muted" style="font-size:11px;max-width:120px">${item.store||'—'}</td>
       <td class="mono">${fmtAUD(item.paid)}</td>
-      <td class="mono" style="color:${item.shipCost > 0 ? 'var(--orange)' : 'var(--muted)'}">${item.shipCost > 0 ? fmtAUD(item.shipCost) : '—'}</td>
       <td><span class="badge ${locClass[item.loc]||''}">${item.loc}</span></td>
-      <td class="mono muted">${fmtPHP(item.desired)}</td>
-      <td class="mono">${item.sold ? (isAUSale(item) ? fmtAUD(item.sold) : fmtPHP(item.sold)) : '—'}</td>
-      <td><span class="badge ${item.owner==='Nica'?'badge-nica':item.owner==='Steph'?'badge-steph':'badge-shared'}">${item.owner||'—'}</span></td>
+      ${ownerBadge(item.owner) ? `<td>${ownerBadge(item.owner)}</td>` : '<td>—</td>'}
       <td><span class="badge ${item.status==='Sold'?'badge-sold':'badge-stock'}">${item.status}</span></td>
-      <td class="${profitCls}">${profit===null?'—':fmtAUD(profit)}</td>
-      <td class="${marginCls}">${margin===null?'—':(margin*100).toFixed(1)+'%'}</td>
-      <td style="min-width:52px">
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <button class="btn btn-edit" onclick="openItemModal(${item.id})">Edit</button>
-          <button class="btn btn-red" onclick="deleteItem(${item.id})">Del</button>
-        </div>
-      </td>
+      ${actionBtns(item.id)}
     </tr>`;
   }).join('');
+
+  // Sales table
+  const salesTbody = document.getElementById('sales-tbody');
+  if (salesTbody) {
+    salesTbody.innerHTML = filtered.map((item, idx) => {
+      const profit = calcItemProfit(item);
+      const margin = calcItemMargin(item);
+      const profitCls = profit === null ? 'profit-nil' : profit >= 0 ? 'profit-pos' : 'profit-neg';
+      const marginCls = margin === null ? 'profit-nil' : margin >= 0 ? 'profit-pos' : 'profit-neg';
+      const rowClass = profit !== null && profit < 0 ? 'row-loss' : item.status === 'Sold' ? 'row-sold' : '';
+      return `<tr class="${rowClass}">
+        <td class="muted">${idx+1}</td>
+        <td style="font-weight:500;max-width:160px">${item.name}</td>
+        <td><span class="badge badge-type">${item.type}</span></td>
+        <td>${ownerBadge(item.owner)}</td>
+        <td class="mono">${fmtAUD(item.paid)}</td>
+        <td class="mono" style="color:${item.shipCost>0?'var(--orange)':'var(--muted)'}">${item.shipCost>0?fmtAUD(item.shipCost):'—'}</td>
+        <td class="mono">${item.sold?(isAUSale(item)?fmtAUD(item.sold):fmtPHP(item.sold)):'—'}</td>
+        <td class="muted" style="font-size:11px">${item.saleChannel?saleChannelLabel(item.saleChannel):'—'}</td>
+        <td><span class="badge ${item.status==='Sold'?'badge-sold':'badge-stock'}">${item.status}</span></td>
+        <td class="${profitCls}">${profit===null?'—':fmtAUD(profit)}</td>
+        <td class="${marginCls}">${margin===null?'—':(margin*100).toFixed(1)+'%'}</td>
+        ${actionBtns(item.id)}
+      </tr>`;
+    }).join('');
+  }
 }
 
 // ── ITEM MODAL ────────────────────────────────────────────────────────────────
@@ -1118,10 +1155,30 @@ function deleteShipment(id) {
   renderInventory();
 }
 
+// ── VIEW TOGGLE ──────────────────────────────────────────────────────────────
+let currentView = 'stock';
+function switchView(view) {
+  currentView = view;
+  document.getElementById('stock-table').style.display = view === 'stock' ? '' : 'none';
+  document.getElementById('sales-table').style.display = view === 'sales' ? '' : 'none';
+  document.getElementById('vbtn-stock').classList.toggle('active', view === 'stock');
+  document.getElementById('vbtn-sales').classList.toggle('active', view === 'sales');
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function initApp(data) {
-  if (data && data.items) {
+  // Only load Firebase data if it actually has items — never replace with empty
+  if (data && data.items && Object.keys(data.items).length > 0) {
     state = data;
+    // Convert items from object to array if Firebase stored as object
+    if (!Array.isArray(state.items)) {
+      state.items = Object.values(state.items);
+    }
+  } else if (data && !data.items) {
+    // Firebase has state but no items — preserve other fields, keep local items
+    state.fxRate = data.fxRate || state.fxRate;
+    state.rates = data.rates || state.rates;
+    state.nextId = data.nextId || state.nextId;
   }
   document.getElementById('fx-rate').value = state.fxRate || 35;
   // Reset all filters to "All" on load
@@ -1149,13 +1206,7 @@ function waitForFirebase(tries=0) {
       }
       showSyncStatus('Synced ✓');
     });
-    // Seed initial data if db is empty
-    window._fbSet !== undefined && setTimeout(() => {
-      if (!state.items || state.items.length === 0) {
-        // db was empty, push defaults
-        saveState();
-      }
-    }, 2000);
+    // Never auto-seed — only user actions should write to Firebase
   } else if (tries < 30) {
     setTimeout(() => waitForFirebase(tries + 1), 200);
   } else {
