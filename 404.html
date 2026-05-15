@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      // GitHub Pages SPA redirect — sends all routes back to index.html
+      var path = window.location.pathname;
+      var search = window.location.search;
+      var hash = window.location.hash;
+      var base = '/pokerookie-tcg';
+      var route = path.replace(base, '') || '/';
+      sessionStorage.setItem('spa-redirect', route + search + hash);
+      window.location.replace(base + '/');
+    </script>
+  </head>
+  <body></body>
+</html>

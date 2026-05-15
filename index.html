@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/pokerookie-tcg/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>pokerookie-tcg</title>
+    <title>PokeRookie TCG</title>
+    <script>
+      // Restore route after GitHub Pages 404 redirect
+      var redirect = sessionStorage.getItem('spa-redirect');
+      if (redirect) {
+        sessionStorage.removeItem('spa-redirect');
+        window.history.replaceState(null, '', '/pokerookie-tcg' + redirect);
+      }
+    </script>
     <script type="module" crossorigin src="/pokerookie-tcg/assets/index-BIckIh8y.js"></script>
     <link rel="stylesheet" crossorigin href="/pokerookie-tcg/assets/index-CJW9iU9v.css">
   </head>
